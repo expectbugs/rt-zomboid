@@ -1,5 +1,6 @@
-# Secrets
+# Secrets and local config
 daemon/config.py
+CLAUDE.md
 
 # Python
 __pycache__/
