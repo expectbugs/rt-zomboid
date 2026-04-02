@@ -1,5 +1,45 @@
 # Changelog
 
+## v0.2.0 — 2026-04-02
+
+Terminal UI, ambient chatter, unified AI history.
+
+### Added
+- **Bus Intelligence Terminal UI** (F9 hotkey)
+  - ISCollapsableWindow with rich text message log, text entry, send button
+  - Color-coded messages: Krang (green), Eris (purple), player (white), system (amber)
+  - Resizable window, scrollable message history (200 line buffer)
+  - Chat commands for multiplayer: /rtui, /krang, /eris
+
+- **Ambient Chatter Engine** (`daemon/ambient.py`)
+  - Krang solo observations: periodic environmental/status notes (10-20 min)
+  - Eris solo quips: bored/funny unprompted comments (15-30 min)
+  - Krang/Eris banter: 2-4 exchanges with natural delays (20-40 min)
+  - Krang observation -> 25% Eris reacts -> 25% Krang replies -> Eris always responds
+  - 12.5% chance Krang ends banter with terse closer ("...", "Ugh.", "Indeed.")
+  - Name-addressing forces the named AI to respond
+  - Push message system: daemon writes rt_push.json, Lua polls with 4s debounce
+
+- **Unified Conversation History**
+  - Both AIs now see each other's messages in context
+  - get_recent_unified() queries all personalities for a player
+  - History formatted with speaker labels (KRANG/ERIS/HUMAN)
+
+### Changed
+- **Krang personality**: more formal and system-like, terse status reports, ship's computer voice
+- **Eris personality**: swears naturally, much stronger variety requirements, explicit anti-repetition rules
+- **Both AIs**: strict anti-repetition — must check history, never repeat topics from last 5 messages
+- **Both AIs**: strict in-character rules — no 4th wall breaking, no game mechanics references
+- Injury tracking: collects body part injuries (scratched, deep wound, bitten, bleeding, fracture, splinted, bandaged)
+- Month/day now 1-indexed (was 0-indexed, causing Krang to think July was "6 months in")
+- Temperature converted to Fahrenheit in context builder
+- JSON responses use ensure_ascii=False (fixes unicode escape spam in UI)
+
+### Fixed
+- JSON encoder rewritten for Kahlua: no rawget, next, string.byte, math.huge, string.format(%g), gsub(TABLE)
+- Push message deduplication: 2s file lifetime + 4s Lua debounce = exactly one read per push
+- Boot request removed (was spamming Krang on every game start)
+
 ## v0.1.0 — 2026-04-01
 
 Phase 1: Foundation — Mod scaffold, file bridge, companion daemon.

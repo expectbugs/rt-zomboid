@@ -3,6 +3,6 @@ id=RTZomboid
 description=Real-time AI companion system with Krang and Eris.
 poster=poster.png
 versionMin=42.0
-modversion=0.1.0
+modversion=0.2.0
 tags=Build 42;Multiplayer Compatible
 authors=expectbugs

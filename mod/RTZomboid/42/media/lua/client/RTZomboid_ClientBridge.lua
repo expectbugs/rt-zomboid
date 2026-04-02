@@ -19,12 +19,9 @@ function RTZ_Bridge.init()
     RTZ_Bridge._pending = {}
     RTZ_Bridge._tick_count = 0
     RTZ_Bridge._processed = {}
+    RTZ_Bridge._last_push_read = 0
     RTZ_Bridge._initialized = true
     print("[RTZ] Client bridge initialized (v" .. RTZ.VERSION .. ")")
-
-    -- Send a test request on startup to verify the bridge works
-    RTZ_Bridge.sendRequest(RTZ.REQUEST_TYPES.CHAT, RTZ.PERSONALITIES.KRANG,
-        "System boot. Report status.")
 end
 
 
@@ -175,10 +172,40 @@ function RTZ_Bridge.collectGameState(player)
 
     -- Body damage — verified in B42 client: ISStatsAndBody.lua:241-244
     --   getOverallBodyHealth(): confirmed
+    --   getBodyParts(): ISHealthPanel.lua:509, AReallyCDDAy.lua:80
+    --   Iteration: bodyParts:size(), bodyParts:get(i-1) — ISHealthPanel.lua:513-514
+    --   BodyPart methods: HasInjury(), bandaged(), scratched(), isDeepWounded(),
+    --     getFractureTime(), getSplintFactor(), getType() — ISHealthPanel.lua:516
+    --   BodyPartType.ToString(type): ISHealthPanel.lua:278
     local bd = player:getBodyDamage()
     if bd then
         state.player = state.player or {}
         state.player.health = bd:getOverallBodyHealth()
+
+        -- Collect injuries from all body parts
+        local injuries = {}
+        local bodyParts = bd:getBodyParts()
+        for i = 1, bodyParts:size() do
+            local bp = bodyParts:get(i - 1)
+            -- Condition check: ISHealthPanel.lua:516
+            if bp:HasInjury() or bp:bandaged() or bp:getSplintFactor() > 0 then
+                local partName = BodyPartType.ToString(bp:getType())
+                local info = {part = partName}
+                -- All methods verified: ISInventoryPaneContextMenu.lua:2790,
+                -- ISHealthPanel.lua:234,516,660,765
+                if bp:scratched() then info.scratched = true end
+                if bp:isDeepWounded() then info.deep_wound = true end
+                if bp:bitten() then info.bitten = true end
+                if bp:bleeding() then info.bleeding = true end
+                if bp:getFractureTime() > 0 then info.fracture = true end
+                if bp:getSplintFactor() > 0 then info.splinted = true end
+                if bp:bandaged() then info.bandaged = true end
+                table.insert(injuries, info)
+            end
+        end
+        if #injuries > 0 then
+            state.player.injuries = injuries
+        end
     end
 
     -- Player position — verified: ISBuildAction.lua, ISCampingMenu.lua
@@ -226,6 +253,7 @@ end
 function RTZ_Bridge.checkResponses()
     local now = getTimestampMs()
 
+    -- Check pending chat responses
     for requestId, pending in pairs(RTZ_Bridge._pending) do
         -- Check for timeout
         if now - pending.sent_ms > RTZ.REQUEST_TIMEOUT_MS then
@@ -242,6 +270,25 @@ function RTZ_Bridge.checkResponses()
                     RTZ_Bridge._processed[respFilename] = true
                     RTZ_Bridge._pending[requestId] = nil
                     RTZ_Bridge.handleResponse(response, pending.personality)
+                end
+            end
+        end
+    end
+
+    -- Check for ambient push messages from daemon
+    -- Debounce at 4 seconds — daemon deletes push file after 2 seconds,
+    -- so 4 second gap ensures each file is read exactly once.
+    -- getFileReader verified: ISLayoutManager.lua:127 (B42 client)
+    if now - RTZ_Bridge._last_push_read > 4000 then
+        local pushResponse = RTZ_Bridge.readResponseFile(RTZ.BRIDGE_PREFIX .. "rt_push.json")
+        if pushResponse then
+            RTZ_Bridge._last_push_read = now
+            for _, msg in ipairs(pushResponse.messages or {}) do
+                local pers = msg.personality or "system"
+                local text = msg.text or ""
+                print("[RTZ] " .. string.upper(pers) .. ": " .. text)
+                if BusTerminalUI and BusTerminalUI.instance and BusTerminalUI.instance:isVisible() then
+                    BusTerminalUI.instance:addMessage(pers, text)
                 end
             end
         end
@@ -280,7 +327,7 @@ end
 
 
 -- Handle a decoded response from the daemon.
--- Phase 1: just print to console. Phase 3+: route to terminal UI.
+-- Routes to Terminal UI if open, always logs to console.
 function RTZ_Bridge.handleResponse(response, personality)
     if not response or not response.messages then
         print("[RTZ] WARNING: Empty or malformed response")
@@ -288,9 +335,16 @@ function RTZ_Bridge.handleResponse(response, personality)
     end
 
     for _, msg in ipairs(response.messages) do
-        local name = string.upper(msg.personality or personality or "???")
+        local pers = msg.personality or personality or "unknown"
         local text = msg.text or "(no response)"
-        print("[RTZ] " .. name .. ": " .. text)
+
+        -- Always log to console
+        print("[RTZ] " .. string.upper(pers) .. ": " .. text)
+
+        -- Route to Terminal UI if open
+        if BusTerminalUI and BusTerminalUI.instance and BusTerminalUI.instance:isVisible() then
+            BusTerminalUI.instance:addMessage(pers, text)
+        end
     end
 end
 

@@ -113,8 +113,24 @@ class FileBridge:
         """Write response JSON file atomically (write .tmp, then rename)."""
         resp_file = self.bridge_dir / f"rt_resp_{request_id}.json"
         tmp_file = resp_file.with_suffix(".tmp")
-        tmp_file.write_text(json.dumps(response))
+        tmp_file.write_text(json.dumps(response, ensure_ascii=False))
         tmp_file.rename(resp_file)
+
+    async def write_push_message(self, messages: list[dict]):
+        """Write an ambient/push message for Lua to pick up.
+
+        Uses rt_push.json — a single file that Lua polls for.
+        Deletes after 2 seconds. Lua debounces reads at 3 seconds,
+        so each file is read exactly once.
+        """
+        push_file = self.bridge_dir / "rt_push.json"
+        content = json.dumps({"messages": messages}, ensure_ascii=False)
+        tmp = push_file.with_suffix(".tmp")
+        tmp.write_text(content)
+        tmp.rename(push_file)
+        log.info("Push message written (%d messages)", len(messages))
+        await asyncio.sleep(2)
+        push_file.unlink(missing_ok=True)
 
     def cleanup_stale_responses(self):
         """Delete response files older than response_ttl seconds."""
@@ -128,6 +144,14 @@ class FileBridge:
                               resp_file.name, age)
             except OSError:
                 pass
+
+        # Clean stale push files too
+        push_file = self.bridge_dir / "rt_push.json"
+        try:
+            if push_file.exists() and now - push_file.stat().st_mtime > 30:
+                push_file.unlink(missing_ok=True)
+        except OSError:
+            pass
 
         # Also prune processed_ids to prevent unbounded growth
         if len(self._processed_ids) > 1000:

@@ -4,7 +4,7 @@
 RTZ = RTZ or {}
 
 RTZ.MOD_ID = "RTZomboid"
-RTZ.VERSION = "0.1.0"
+RTZ.VERSION = "0.2.0"
 
 -- File bridge settings
 RTZ.BRIDGE_PREFIX = "RTZomboid_Bridge/"

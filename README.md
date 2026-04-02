@@ -85,9 +85,11 @@ cp daemon/config.example.py daemon/config.py
 
 ## Current Status
 
-**Phase 1 complete** — end-to-end communication working:
-- PZ mod loads, collects game state, writes bridge requests
-- Daemon polls, routes to Krang/Eris Claude sessions, writes responses
-- Responses appear in PZ console
+**Phase 2 in progress** — Terminal UI and ambient chatter working:
+- In-game terminal UI (F9) with color-coded Krang/Eris/player messages
+- Krang always responds to player chat, Eris pipes in ~33% or when addressed
+- Ambient chatter: unprompted observations, quips, and Krang/Eris banter
+- Unified conversation history — both AIs see each other's messages
+- Injury tracking, weather, full player stats in game state context
 
 See `fullplan.md` for the full roadmap (8 modules across 4 phases).

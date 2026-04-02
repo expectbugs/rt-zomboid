@@ -71,6 +71,17 @@ class MemoryStore:
         # Return in chronological order
         return [dict(r) for r in reversed(rows)]
 
+    def get_recent_unified(self, player: str, limit: int = 10) -> list[dict]:
+        """Get recent messages from ALL personalities for a player."""
+        with self._get_conn() as conn:
+            rows = conn.execute(
+                "SELECT personality, role, message, timestamp FROM conversations "
+                "WHERE player = ? "
+                "ORDER BY timestamp DESC LIMIT ?",
+                (player, limit),
+            ).fetchall()
+        return [dict(r) for r in reversed(rows)]
+
     def log_event(self, event_type: str, description: str,
                   game_state_json: str | None = None):
         with self._get_conn() as conn:

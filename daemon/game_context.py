@@ -58,10 +58,8 @@ class GameContextBuilder:
             if parts:
                 sections.append(f"[WEATHER] {', '.join(parts)}")
 
-        # Recent conversation history
-        history = self.memory.get_recent_conversations(
-            personality=personality, player=player, limit=5,
-        )
+        # Unified conversation history — both Krang and Eris see each other
+        history = self.memory.get_recent_unified(player=player, limit=10)
         if history:
             sections.append(self._format_history(history))
 
@@ -115,6 +113,13 @@ class GameContextBuilder:
             msg = str(turn["message"])
             if len(msg) > 500:
                 msg = msg[:500] + "..."
-            lines.append(f"  {role}: {msg}")
+            # Unified history includes personality field
+            personality = turn.get("personality", "")
+            if role == "USER":
+                lines.append(f"  HUMAN: {msg}")
+            elif personality:
+                lines.append(f"  {personality.upper()}: {msg}")
+            else:
+                lines.append(f"  {role}: {msg}")
         lines.append("[/RECENT CONVERSATION]")
         return "\n".join(lines)
