@@ -1,0 +1,3 @@
+# RT-Zomboid Companion Daemon
+# Phase 1: stdlib only (asyncio, json, sqlite3, pathlib, logging)
+# No external dependencies required.
