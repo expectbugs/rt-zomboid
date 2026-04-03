@@ -1,5 +1,6 @@
 name=RT-Zomboid
 id=RTZomboid
+require=PROJECTRVInterior42
 description=Real-time AI companion system with Krang and Eris.
 poster=poster.png
 versionMin=42.0
